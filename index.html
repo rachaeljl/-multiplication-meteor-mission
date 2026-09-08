@@ -58,6 +58,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:14px}
 .levelup-overlay{padding:18px;text-align:center}
 .rapid-result{padding:14px;border-radius:14px;background:#171d3c;border:1px solid #4c5791;margin-top:12px}
+.sound-off{opacity:.75}
 @media(max-width:650px){
   .stats{grid-template-columns:repeat(2,1fr)}
   .stats .stat:last-child{grid-column:1/-1}
@@ -71,6 +72,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
   <h1>☄️ Multiplication Meteor Mission</h1>
   <p class="subtitle">Master your facts. Explore the galaxy. Blast through Rapid Fire bonus rounds.</p>
 
+  <div class="row" style="margin-bottom:12px"><span></span><button id="soundBtn" type="button" class="secondary">🔊 Sound On</button></div>
   <section id="startScreen" class="panel center">
     <div class="planet">🚀</div>
     <h2>Ready for Launch?</h2>
@@ -191,6 +193,52 @@ button:disabled{opacity:.5;cursor:not-allowed}
   const RAPID_SECONDS = 30;
   const RAPID_POINTS_PER_CORRECT = 10;
 
+  let audioCtx=null, soundOn=true;
+
+  function initAudio(){
+    if(!soundOn) return;
+    try{
+      if(!audioCtx){
+        const AC=window.AudioContext||window.webkitAudioContext;
+        if(AC) audioCtx=new AC();
+      }
+      if(audioCtx && audioCtx.state==="suspended") audioCtx.resume();
+    }catch(e){}
+  }
+
+  function tone(freq=440,dur=.12,type="sine",gain=.07,delay=0){
+    if(!soundOn) return;
+    initAudio();
+    if(!audioCtx) return;
+    const now=audioCtx.currentTime+delay;
+    const osc=audioCtx.createOscillator();
+    const g=audioCtx.createGain();
+    osc.type=type;
+    osc.frequency.setValueAtTime(freq,now);
+    g.gain.setValueAtTime(0.0001,now);
+    g.gain.exponentialRampToValueAtTime(Math.max(gain,0.0002),now+.01);
+    g.gain.exponentialRampToValueAtTime(0.0001,now+dur);
+    osc.connect(g); g.connect(audioCtx.destination);
+    osc.start(now); osc.stop(now+dur+.02);
+  }
+
+  function soundCorrect(){ tone(660,.08,"square",.045,0); tone(880,.11,"square",.04,.07); }
+  function soundWrong(){ tone(220,.16,"sawtooth",.035,0); }
+  function soundLevelUp(){ [523,659,784,1047].forEach((f,i)=>tone(f,.16,"triangle",.055,i*.09)); }
+  function soundCountdown(n){ tone(n===0?880:440,.12,"square",.045,0); }
+  function soundBlastOff(){ tone(330,.10,"sawtooth",.05,0); tone(494,.12,"sawtooth",.05,.08); tone(740,.18,"sawtooth",.045,.16); }
+  function soundRapidHit(){ tone(880,.06,"square",.04,0); }
+  function soundRapidEnd(){ [740,587,494].forEach((f,i)=>tone(f,.12,"triangle",.045,i*.08)); }
+  function soundMissionComplete(){ [523,659,784,1047,1319].forEach((f,i)=>tone(f,.18,"triangle",.055,i*.1)); }
+
+  function updateSoundButton(){
+    const btn=$("soundBtn");
+    if(!btn) return;
+    btn.textContent=soundOn?"🔊 Sound On":"🔇 Sound Off";
+    btn.classList.toggle("sound-off",!soundOn);
+    btn.setAttribute("aria-pressed",soundOn?"true":"false");
+  }
+
   const $ = id => document.getElementById(id);
   const screens = ["startScreen","playScreen","levelUpScreen","rapidScreen","rapidResultScreen","reportScreen"];
 
@@ -249,6 +297,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
   }
 
   function startGame(){
+    initAudio();
     clearInterval(rapidTimer); clearInterval(countdownTimer);
     levelIndex=0;score=0;bonusPoints=0;correct=0;attempted=0;levelCorrect=0;levelAttempted=0;levelStartScore=0;
     achievements=new Set(); lastKey="";
@@ -263,6 +312,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
     $("levelUpTitle").textContent=`${lvl.name} Complete!`;
     const acc=levelAttempted?Math.round(levelCorrect/levelAttempted*100):0;
     $("levelUpText").innerHTML=`You cleared Level ${levelIndex+1} with <strong>${levelCorrect} correct</strong> and <strong>${acc}% level accuracy</strong>.<br>Ready for a 30-second bonus round?`;
+    soundLevelUp();
     show("levelUpScreen");
   }
 
@@ -273,9 +323,9 @@ button:disabled{opacity:.5;cursor:not-allowed}
     attempted++; levelAttempted++;
     if(n===a*b){
       correct++; levelCorrect++; score+=POINTS_PER_CORRECT;
-      $("feedback").textContent="Direct hit! +10 🚀"; $("feedback").className="feedback good";
+      $("feedback").textContent="Direct hit! +10 🚀"; $("feedback").className="feedback good"; soundCorrect();
     }else{
-      $("feedback").textContent=`Missed! The answer was ${a*b}.`; $("feedback").className="feedback bad";
+      $("feedback").textContent=`Missed! The answer was ${a*b}.`; $("feedback").className="feedback bad"; soundWrong();
     }
     maybeAwardAchievements(); updatePlay();
     if(levelProgressPoints()>=currentLevel().goal) finishLevel();
@@ -293,12 +343,12 @@ button:disabled{opacity:.5;cursor:not-allowed}
     rapidLeft=RAPID_SECONDS;rapidCorrect=0;rapidAttempted=0;rapidRoundBonus=0;rapidLast="";
     $("rapidTime").textContent=RAPID_SECONDS+" sec";$("rapidBonus").textContent="0";$("rapidCorrect").textContent="0";
     $("rapidFeedback").textContent="";$("rapidGame").classList.add("hidden");
-    let c=3;$("countdown").textContent=c;$("countdown").classList.remove("hidden");
+    let c=3;$("countdown").textContent=c;$("countdown").classList.remove("hidden");soundCountdown(c);
     clearInterval(countdownTimer);
     countdownTimer=setInterval(()=>{
       c--;
-      if(c>0){$("countdown").textContent=c;}
-      else if(c===0){$("countdown").textContent="BLAST OFF!";}
+      if(c>0){$("countdown").textContent=c;soundCountdown(c);}
+      else if(c===0){$("countdown").textContent="BLAST OFF!";soundBlastOff();}
       else{
         clearInterval(countdownTimer);
         $("countdown").classList.add("hidden");$("rapidGame").classList.remove("hidden");
@@ -321,9 +371,9 @@ button:disabled{opacity:.5;cursor:not-allowed}
     rapidAttempted++;
     if(n===rapidA*rapidB){
       rapidCorrect++;rapidRoundBonus+=RAPID_POINTS_PER_CORRECT;bonusPoints+=RAPID_POINTS_PER_CORRECT;score+=RAPID_POINTS_PER_CORRECT;
-      $("rapidFeedback").textContent="+10 Bonus! ⚡";$("rapidFeedback").className="feedback good";
+      $("rapidFeedback").textContent="+10 Bonus! ⚡";$("rapidFeedback").className="feedback good";soundRapidHit();
     }else{
-      $("rapidFeedback").textContent=`${rapidA*rapidB}`;$("rapidFeedback").className="feedback bad";
+      $("rapidFeedback").textContent=`${rapidA*rapidB}`;$("rapidFeedback").className="feedback bad";soundWrong();
     }
     $("rapidBonus").textContent=rapidRoundBonus;$("rapidCorrect").textContent=rapidCorrect;
     maybeAwardAchievements(); newRapidProblem();
@@ -333,6 +383,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
     clearInterval(rapidTimer); rapidLeft=0;
     const acc=rapidAttempted?Math.round(rapidCorrect/rapidAttempted*100):0;
     $("rapidResult").innerHTML=`You got <strong>${rapidCorrect}</strong> correct in 30 seconds and earned <strong>+${rapidRoundBonus} bonus points</strong>.<br>Rapid Fire accuracy: <strong>${acc}%</strong>.`;
+    soundRapidEnd();
     show("rapidResultScreen");
   }
 
@@ -368,6 +419,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
       `Achievements: ${achievements.size?[...achievements].join(", "):"None yet"}`
     ].join("\n");
     $("reportText").textContent=report;
+    soundMissionComplete();
     show("reportScreen");
   }
 
@@ -392,6 +444,12 @@ button:disabled{opacity:.5;cursor:not-allowed}
     document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
   }
 
+  $("soundBtn").addEventListener("click",()=>{
+    soundOn=!soundOn;
+    if(soundOn){initAudio();tone(660,.08,"sine",.04,0);}
+    updateSoundButton();
+  });
+  updateSoundButton();
   $("startBtn").addEventListener("click",startGame);
   $("finishBtn").addEventListener("click",finishMission);
   $("rapidBtn").addEventListener("click",startRapid);
