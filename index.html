@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Multiplication Meteor Mission</title>
+<style>
+:root{
+  --bg:#090f22; --panel:#131a34; --panel2:#0f1530; --line:#33406d;
+  --text:#f8fafc; --muted:#b8c1dc; --accent:#7dd3fc; --good:#86efac;
+  --bad:#fca5a5; --gold:#fde68a; --purple:#c4b5fd;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; min-height:100vh; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  background:radial-gradient(circle at top,#22336d 0,#111a3d 30%,#090f22 70%);
+  color:var(--text); display:flex; justify-content:center; align-items:flex-start; padding:20px;
+}
+.game{width:min(850px,100%); background:rgba(19,26,52,.96); border:1px solid var(--line); border-radius:24px; padding:22px; box-shadow:0 18px 60px rgba(0,0,0,.35)}
+h1,h2,h3,p{margin-top:0}
+h1{text-align:center;font-size:clamp(1.8rem,5vw,2.7rem);margin-bottom:6px}
+.subtitle{text-align:center;color:var(--muted);margin-bottom:18px}
+.panel{background:var(--panel2);border:1px solid var(--line);border-radius:20px;padding:20px}
+.hidden{display:none!important}
+.center{text-align:center}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:12px}
+.stat{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:10px;text-align:center}
+.label{font-size:.72rem;color:var(--muted);font-weight:700;letter-spacing:.04em}
+.value{font-size:1.25rem;font-weight:900;margin-top:2px}
+.problem{font-size:clamp(3rem,12vw,5.5rem);font-weight:900;text-align:center;line-height:1.05;margin:18px 0}
+form{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+input{
+  width:190px;max-width:100%;font-size:2rem;text-align:center;padding:12px;border-radius:14px;
+  border:2px solid #465486;background:#fff;color:#111827;outline:none;
+}
+input:focus{border-color:var(--accent);box-shadow:0 0 0 4px rgba(125,211,252,.16)}
+button{
+  min-height:52px;padding:0 20px;border:0;border-radius:14px;font-size:1rem;font-weight:850;
+  cursor:pointer;background:var(--accent);color:#082032
+}
+button.secondary{background:#263257;color:var(--text);border:1px solid #4b5b91}
+button.gold{background:var(--gold);color:#3a2c00}
+button:disabled{opacity:.5;cursor:not-allowed}
+.feedback{min-height:30px;text-align:center;font-weight:850;margin-top:10px}
+.good{color:var(--good)} .bad{color:var(--bad)}
+.track{height:12px;background:#080d1e;border-radius:999px;overflow:hidden;margin-top:8px}
+.bar{height:100%;background:linear-gradient(90deg,var(--accent),var(--gold));width:0}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.tiny{font-size:.83rem;color:var(--muted)}
+.level-card{display:grid;grid-template-columns:70px 1fr;gap:14px;align-items:center}
+.planet{font-size:3.6rem;text-align:center}
+.badge-wrap{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:12px}
+.badge{padding:7px 10px;border-radius:999px;background:#202b50;border:1px solid #465486;font-size:.82rem;font-weight:800}
+.bigscore{font-size:clamp(2.5rem,10vw,5rem);font-weight:950;color:var(--gold);text-align:center;margin:8px 0}
+.rapid{border:2px solid var(--purple);background:linear-gradient(180deg,#151739,#0f1530)}
+.countdown{font-size:clamp(3.5rem,15vw,7rem);font-weight:950;text-align:center;color:var(--gold);min-height:1.2em}
+.report{white-space:pre-wrap;text-align:left;background:#090f22;border:1px solid var(--line);border-radius:14px;padding:14px;color:#e5e7eb;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9rem}
+.actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:14px}
+.levelup-overlay{padding:18px;text-align:center}
+.rapid-result{padding:14px;border-radius:14px;background:#171d3c;border:1px solid #4c5791;margin-top:12px}
+.sound-off{opacity:.75}
+@media(max-width:650px){
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .stats .stat:last-child{grid-column:1/-1}
+  .game{padding:15px;border-radius:18px}
+  .level-card{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<main class="game">
+  <h1>☄️ Multiplication Meteor Mission</h1>
+  <p class="subtitle">Master your facts. Explore the galaxy. Blast through Rapid Fire bonus rounds.</p>
+
+  <div class="row" style="margin-bottom:12px"><span></span><button id="soundBtn" type="button" class="secondary">🔊 Sound On</button></div>
+  <section id="startScreen" class="panel center">
+    <div class="planet">🚀</div>
+    <h2>Ready for Launch?</h2>
+    <p>Practice multiplication facts from <strong>0 × 0 through 12 × 12</strong>. There is no timer during regular levels, so focus on accuracy.</p>
+    <p>Each correct answer earns <strong>10 Meteor Points</strong>. Complete a level goal to unlock a <strong>30-second Rapid Fire bonus round</strong>.</p>
+    <p class="tiny">Rapid Fire adds bonus points but is never required for level advancement.</p>
+    <button id="startBtn" type="button">Start Mission</button>
+  </section>
+
+  <section id="playScreen" class="hidden">
+    <div class="stats">
+      <div class="stat"><div class="label">LEVEL</div><div id="level" class="value">1</div></div>
+      <div class="stat"><div class="label">TOTAL POINTS</div><div id="score" class="value">0</div></div>
+      <div class="stat"><div class="label">BONUS</div><div id="bonus" class="value">0</div></div>
+      <div class="stat"><div class="label">CORRECT</div><div id="correct" class="value">0</div></div>
+      <div class="stat"><div class="label">ACCURACY</div><div id="accuracy" class="value">—</div></div>
+    </div>
+
+    <div class="panel">
+      <div class="level-card">
+        <div id="planetIcon" class="planet">🌍</div>
+        <div>
+          <div class="row"><strong id="levelName">Level 1: Launch Pad</strong><span id="levelGoalText" class="tiny">0 / 100 pts</span></div>
+          <div class="track"><div id="bar" class="bar"></div></div>
+        </div>
+      </div>
+
+      <div id="problem" class="problem">6 × 7</div>
+      <form id="answerForm">
+        <label for="answer" class="hidden">Answer</label>
+        <input id="answer" inputmode="numeric" autocomplete="off" aria-label="Type your answer">
+        <button type="submit">Submit</button>
+      </form>
+      <div id="feedback" class="feedback" aria-live="polite"></div>
+      <div id="badges" class="badge-wrap"></div>
+      <div class="actions">
+        <button id="finishBtn" type="button" class="secondary">Finish Mission</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="levelUpScreen" class="panel levelup-overlay hidden">
+    <div class="planet" id="levelUpIcon">🌙</div>
+    <h2 id="levelUpTitle">Level Complete!</h2>
+    <p id="levelUpText"></p>
+    <div class="actions">
+      <button id="rapidBtn" type="button" class="gold">Start Rapid Fire Bonus</button>
+      <button id="skipRapidBtn" type="button" class="secondary">Skip Bonus & Continue</button>
+    </div>
+  </section>
+
+  <section id="rapidScreen" class="panel rapid hidden">
+    <div class="row">
+      <div>
+        <div class="label">RAPID FIRE</div>
+        <div id="rapidTime" class="value">30 sec</div>
+      </div>
+      <div>
+        <div class="label">BONUS THIS ROUND</div>
+        <div id="rapidBonus" class="value">0</div>
+      </div>
+      <div>
+        <div class="label">CORRECT</div>
+        <div id="rapidCorrect" class="value">0</div>
+      </div>
+    </div>
+    <div id="countdown" class="countdown">3</div>
+    <div id="rapidGame" class="hidden">
+      <div id="rapidProblem" class="problem">8 × 7</div>
+      <form id="rapidForm">
+        <label for="rapidAnswer" class="hidden">Rapid Fire answer</label>
+        <input id="rapidAnswer" inputmode="numeric" autocomplete="off" aria-label="Type your Rapid Fire answer">
+        <button type="submit" class="gold">Blast!</button>
+      </form>
+      <div id="rapidFeedback" class="feedback" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <section id="rapidResultScreen" class="panel center hidden">
+    <div class="planet">⚡</div>
+    <h2>Rapid Fire Complete!</h2>
+    <div id="rapidResult" class="rapid-result"></div>
+    <div class="actions">
+      <button id="continueBtn" type="button">Continue to Next Level</button>
+    </div>
+  </section>
+
+  <section id="reportScreen" class="panel hidden">
+    <div class="planet center">🏆</div>
+    <h2 class="center">Mission Report</h2>
+    <div class="bigscore"><span id="finalPoints">0</span> pts</div>
+    <div id="finalBadges" class="badge-wrap"></div>
+    <p id="summary" class="center"></p>
+    <div id="reportText" class="report"></div>
+    <div class="actions">
+      <button id="copyBtn" type="button">Copy Mission Report</button>
+      <button id="downloadBtn" type="button" class="gold">Download Report</button>
+      <button id="restartBtn" type="button" class="secondary">Play Again</button>
+    </div>
+    <div id="copyStatus" class="feedback" aria-live="polite"></div>
+  </section>
+</main>
+
+<script>
+(() => {
+  const LEVELS = [
+    {name:"Launch Pad", icon:"🚀", goal:100},
+    {name:"Moon Base", icon:"🌙", goal:120},
+    {name:"Mars Mission", icon:"🔴", goal:140},
+    {name:"Asteroid Belt", icon:"☄️", goal:160},
+    {name:"Jupiter Station", icon:"🪐", goal:180},
+    {name:"Saturn Rings", icon:"💫", goal:200},
+    {name:"Uranus Outpost", icon:"🔵", goal:220},
+    {name:"Neptune Base", icon:"🌊", goal:240},
+    {name:"Deep Space", icon:"✨", goal:260}
+  ];
+  const POINTS_PER_CORRECT = 10;
+  const RAPID_SECONDS = 30;
+  const RAPID_POINTS_PER_CORRECT = 10;
+
+  let audioCtx=null, soundOn=true;
+
+  function initAudio(){
+    if(!soundOn) return;
+    try{
+      if(!audioCtx){
+        const AC=window.AudioContext||window.webkitAudioContext;
+        if(AC) audioCtx=new AC();
+      }
+      if(audioCtx && audioCtx.state==="suspended") audioCtx.resume();
+    }catch(e){}
+  }
+
+  function tone(freq=440,dur=.12,type="sine",gain=.07,delay=0){
+    if(!soundOn) return;
+    initAudio();
+    if(!audioCtx) return;
+    const now=audioCtx.currentTime+delay;
+    const osc=audioCtx.createOscillator();
+    const g=audioCtx.createGain();
+    osc.type=type;
+    osc.frequency.setValueAtTime(freq,now);
+    g.gain.setValueAtTime(0.0001,now);
+    g.gain.exponentialRampToValueAtTime(Math.max(gain,0.0002),now+.01);
+    g.gain.exponentialRampToValueAtTime(0.0001,now+dur);
+    osc.connect(g); g.connect(audioCtx.destination);
+    osc.start(now); osc.stop(now+dur+.02);
+  }
+
+  function soundCorrect(){ tone(660,.08,"square",.045,0); tone(880,.11,"square",.04,.07); }
+  function soundWrong(){ tone(220,.16,"sawtooth",.035,0); }
+  function soundLevelUp(){ [523,659,784,1047].forEach((f,i)=>tone(f,.16,"triangle",.055,i*.09)); }
+  function soundCountdown(n){ tone(n===0?880:440,.12,"square",.045,0); }
+  function soundBlastOff(){ tone(330,.10,"sawtooth",.05,0); tone(494,.12,"sawtooth",.05,.08); tone(740,.18,"sawtooth",.045,.16); }
+  function soundRapidHit(){ tone(880,.06,"square",.04,0); }
+  function soundRapidEnd(){ [740,587,494].forEach((f,i)=>tone(f,.12,"triangle",.045,i*.08)); }
+  function soundMissionComplete(){ [523,659,784,1047,1319].forEach((f,i)=>tone(f,.18,"triangle",.055,i*.1)); }
+
+  function updateSoundButton(){
+    const btn=$("soundBtn");
+    if(!btn) return;
+    btn.textContent=soundOn?"🔊 Sound On":"🔇 Sound Off";
+    btn.classList.toggle("sound-off",!soundOn);
+    btn.setAttribute("aria-pressed",soundOn?"true":"false");
+  }
+
+  const $ = id => document.getElementById(id);
+  const screens = ["startScreen","playScreen","levelUpScreen","rapidScreen","rapidResultScreen","reportScreen"];
+
+  let levelIndex=0, score=0, bonusPoints=0, correct=0, attempted=0;
+  let levelCorrect=0, levelAttempted=0, levelStartScore=0;
+  let achievements=new Set();
+  let a=0,b=0,lastKey="";
+  let rapidTimer=null, countdownTimer=null, rapidLeft=RAPID_SECONDS, rapidCorrect=0, rapidAttempted=0, rapidRoundBonus=0;
+  let rapidA=0,rapidB=0,rapidLast="";
+
+  function show(id){ screens.forEach(s => $(s).classList.toggle("hidden", s!==id)); }
+  function rand(){ return Math.floor(Math.random()*13); }
+  function currentLevel(){ return LEVELS[Math.min(levelIndex, LEVELS.length-1)]; }
+
+  function newProblem(){
+    let key;
+    do{ a=rand(); b=rand(); key=a+"x"+b; }while(key===lastKey);
+    lastKey=key;
+    $("problem").textContent=`${a} × ${b}`;
+    $("answer").value="";
+    $("answer").focus();
+  }
+
+  function levelProgressPoints(){ return score - levelStartScore; }
+
+  function updatePlay(){
+    const lvl=currentLevel();
+    $("level").textContent=levelIndex+1;
+    $("score").textContent=score;
+    $("bonus").textContent=bonusPoints;
+    $("correct").textContent=correct;
+    $("accuracy").textContent=attempted ? Math.round(correct/attempted*100)+"%" : "—";
+    $("planetIcon").textContent=lvl.icon;
+    $("levelName").textContent=`Level ${levelIndex+1}: ${lvl.name}`;
+    const p=Math.min(levelProgressPoints(),lvl.goal);
+    $("levelGoalText").textContent=`${p} / ${lvl.goal} pts`;
+    $("bar").style.width=(p/lvl.goal*100)+"%";
+    renderBadges();
+  }
+
+  function maybeAwardAchievements(){
+    const acc = attempted ? correct/attempted : 0;
+    if(correct>=10) achievements.add("☄️ Meteor Rookie");
+    if(correct>=25) achievements.add("🚀 Fact Flyer");
+    if(correct>=50) achievements.add("🌟 Galaxy Scholar");
+    if(attempted>=10 && acc>=0.90) achievements.add("🎯 Sharp Shooter");
+    if(levelAttempted>=5 && levelCorrect===levelAttempted) achievements.add("🛡️ Perfect Orbit");
+    if(bonusPoints>=50) achievements.add("⚡ Rapid Fire Ace");
+  }
+
+  function renderBadges(){
+    $("badges").innerHTML="";
+    [...achievements].slice(-4).forEach(x=>{
+      const d=document.createElement("span"); d.className="badge"; d.textContent=x; $("badges").appendChild(d);
+    });
+  }
+
+  function startGame(){
+    initAudio();
+    clearInterval(rapidTimer); clearInterval(countdownTimer);
+    levelIndex=0;score=0;bonusPoints=0;correct=0;attempted=0;levelCorrect=0;levelAttempted=0;levelStartScore=0;
+    achievements=new Set(); lastKey="";
+    $("feedback").textContent=""; $("copyStatus").textContent="";
+    show("playScreen"); updatePlay(); newProblem();
+  }
+
+  function finishLevel(){
+    maybeAwardAchievements();
+    const lvl=currentLevel();
+    $("levelUpIcon").textContent=lvl.icon;
+    $("levelUpTitle").textContent=`${lvl.name} Complete!`;
+    const acc=levelAttempted?Math.round(levelCorrect/levelAttempted*100):0;
+    $("levelUpText").innerHTML=`You cleared Level ${levelIndex+1} with <strong>${levelCorrect} correct</strong> and <strong>${acc}% level accuracy</strong>.<br>Ready for a 30-second bonus round?`;
+    soundLevelUp();
+    show("levelUpScreen");
+  }
+
+  $("answerForm").addEventListener("submit",e=>{
+    e.preventDefault();
+    const raw=$("answer").value.trim(); if(raw==="")return;
+    const n=Number(raw); if(!Number.isFinite(n))return;
+    attempted++; levelAttempted++;
+    if(n===a*b){
+      correct++; levelCorrect++; score+=POINTS_PER_CORRECT;
+      $("feedback").textContent="Direct hit! +10 🚀"; $("feedback").className="feedback good"; soundCorrect();
+    }else{
+      $("feedback").textContent=`Missed! The answer was ${a*b}.`; $("feedback").className="feedback bad"; soundWrong();
+    }
+    maybeAwardAchievements(); updatePlay();
+    if(levelProgressPoints()>=currentLevel().goal) finishLevel();
+    else newProblem();
+  });
+
+  function newRapidProblem(){
+    let key;
+    do{rapidA=rand();rapidB=rand();key=rapidA+"x"+rapidB;}while(key===rapidLast);
+    rapidLast=key; $("rapidProblem").textContent=`${rapidA} × ${rapidB}`; $("rapidAnswer").value=""; $("rapidAnswer").focus();
+  }
+
+  function startRapid(){
+    show("rapidScreen");
+    rapidLeft=RAPID_SECONDS;rapidCorrect=0;rapidAttempted=0;rapidRoundBonus=0;rapidLast="";
+    $("rapidTime").textContent=RAPID_SECONDS+" sec";$("rapidBonus").textContent="0";$("rapidCorrect").textContent="0";
+    $("rapidFeedback").textContent="";$("rapidGame").classList.add("hidden");
+    let c=3;$("countdown").textContent=c;$("countdown").classList.remove("hidden");soundCountdown(c);
+    clearInterval(countdownTimer);
+    countdownTimer=setInterval(()=>{
+      c--;
+      if(c>0){$("countdown").textContent=c;soundCountdown(c);}
+      else if(c===0){$("countdown").textContent="BLAST OFF!";soundBlastOff();}
+      else{
+        clearInterval(countdownTimer);
+        $("countdown").classList.add("hidden");$("rapidGame").classList.remove("hidden");
+        newRapidProblem();
+        clearInterval(rapidTimer);
+        rapidTimer=setInterval(()=>{
+          rapidLeft--;
+          $("rapidTime").textContent=rapidLeft+" sec";
+          if(rapidLeft<=0) endRapid();
+        },1000);
+      }
+    },800);
+  }
+
+  $("rapidForm").addEventListener("submit",e=>{
+    e.preventDefault();
+    if(rapidLeft<=0)return;
+    const raw=$("rapidAnswer").value.trim(); if(raw==="")return;
+    const n=Number(raw); if(!Number.isFinite(n))return;
+    rapidAttempted++;
+    if(n===rapidA*rapidB){
+      rapidCorrect++;rapidRoundBonus+=RAPID_POINTS_PER_CORRECT;bonusPoints+=RAPID_POINTS_PER_CORRECT;score+=RAPID_POINTS_PER_CORRECT;
+      $("rapidFeedback").textContent="+10 Bonus! ⚡";$("rapidFeedback").className="feedback good";soundRapidHit();
+    }else{
+      $("rapidFeedback").textContent=`${rapidA*rapidB}`;$("rapidFeedback").className="feedback bad";soundWrong();
+    }
+    $("rapidBonus").textContent=rapidRoundBonus;$("rapidCorrect").textContent=rapidCorrect;
+    maybeAwardAchievements(); newRapidProblem();
+  });
+
+  function endRapid(){
+    clearInterval(rapidTimer); rapidLeft=0;
+    const acc=rapidAttempted?Math.round(rapidCorrect/rapidAttempted*100):0;
+    $("rapidResult").innerHTML=`You got <strong>${rapidCorrect}</strong> correct in 30 seconds and earned <strong>+${rapidRoundBonus} bonus points</strong>.<br>Rapid Fire accuracy: <strong>${acc}%</strong>.`;
+    soundRapidEnd();
+    show("rapidResultScreen");
+  }
+
+  function advanceLevel(){
+    if(levelIndex < LEVELS.length-1){
+      levelIndex++;
+      levelStartScore=score;
+      levelCorrect=0;levelAttempted=0;
+      show("playScreen");updatePlay();newProblem();
+    }else{
+      achievements.add("🏆 Multiplication Master");
+      finishMission();
+    }
+  }
+
+  function finishMission(){
+    clearInterval(rapidTimer);clearInterval(countdownTimer);maybeAwardAchievements();
+    const acc=attempted?Math.round(correct/attempted*100):0;
+    $("finalPoints").textContent=score;
+    $("summary").innerHTML=`Level reached: <strong>${levelIndex+1}</strong> · Correct: <strong>${correct}</strong> · Accuracy: <strong>${acc}%</strong> · Rapid Fire bonus: <strong>${bonusPoints}</strong>`;
+    $("finalBadges").innerHTML="";
+    [...achievements].forEach(x=>{const d=document.createElement("span");d.className="badge";d.textContent=x;$("finalBadges").appendChild(d);});
+    const report=[
+      "MULTIPLICATION METEOR MISSION",
+      "Mission Report",
+      "------------------------------",
+      `Level Reached: ${levelIndex+1} - ${currentLevel().name}`,
+      `Total Meteor Points: ${score}`,
+      `Rapid Fire Bonus Points: ${bonusPoints}`,
+      `Problems Attempted: ${attempted}`,
+      `Correct Answers: ${correct}`,
+      `Overall Accuracy: ${acc}%`,
+      `Achievements: ${achievements.size?[...achievements].join(", "):"None yet"}`
+    ].join("\n");
+    $("reportText").textContent=report;
+    soundMissionComplete();
+    show("reportScreen");
+  }
+
+  async function copyReport(){
+    const text=$("reportText").textContent;
+    try{
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        await navigator.clipboard.writeText(text);
+        $("copyStatus").textContent="Mission Report copied!";
+      }else{
+        throw new Error();
+      }
+    }catch{
+      $("copyStatus").textContent="Copy is blocked in this browser. Select the report text and copy it manually.";
+    }
+  }
+
+  function downloadReport(){
+    const blob=new Blob([$("reportText").textContent],{type:"text/plain"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");a.href=url;a.download="multiplication-meteor-mission-report.txt";
+    document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
+  }
+
+  $("soundBtn").addEventListener("click",()=>{
+    soundOn=!soundOn;
+    if(soundOn){initAudio();tone(660,.08,"sine",.04,0);}
+    updateSoundButton();
+  });
+  updateSoundButton();
+  $("startBtn").addEventListener("click",startGame);
+  $("finishBtn").addEventListener("click",finishMission);
+  $("rapidBtn").addEventListener("click",startRapid);
+  $("skipRapidBtn").addEventListener("click",advanceLevel);
+  $("continueBtn").addEventListener("click",advanceLevel);
+  $("restartBtn").addEventListener("click",startGame);
+  $("copyBtn").addEventListener("click",copyReport);
+  $("downloadBtn").addEventListener("click",downloadReport);
+})();
+</script>
+</body>
+</html>
